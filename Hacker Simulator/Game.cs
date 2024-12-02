@@ -13,6 +13,7 @@ namespace Hacker_Simulator
         private bool isGameOver = false;
         private List<string> discoveredIPs = new List<string>();
         private int securityLevel = 100;
+        private Dictionary<string, NetworkNode> networkMap = new Dictionary<string, NetworkNode>();
 
         public void Start()
         {
@@ -63,7 +64,14 @@ namespace Hacker_Simulator
             switch (baseCommand)
             {
                 case "scan":
-                    ScanNetwork();
+                    if (parts.Length > 1)
+                    {
+                        ScanNetwork(parts[1]); // deep, stealth, or basic
+                    }
+                    else
+                    {
+                        ScanNetwork(); // defaults to basic
+                    }
                     break;
 
                 case "analyze":
@@ -95,26 +103,25 @@ namespace Hacker_Simulator
             }
         }
 
-        private void ScanNetwork()
+        private void ScanNetwork(string scanType = "basic")
         {
-            Console.WriteLine("Scanning network...");
-            Thread.Sleep(1500); // Simulate scanning delay
+            Console.WriteLine($"Initiating {scanType} network scan...");
+            Thread.Sleep(1000);
 
-            if (!discoveredIPs.Contains(enemyIP))
+            switch (scanType.ToLower())
             {
-                Random rand = new Random();
-                if (rand.Next(100) < 40) // 40% chance to discover enemy IP
-                {
-                    discoveredIPs.Add(enemyIP);
-                    Console.WriteLine($"Discovered IP: {enemyIP}");
-                }
-                else
-                {
-                    string decoyIP = GenerateRandomIP();
-                    discoveredIPs.Add(decoyIP);
-                    Console.WriteLine($"Discovered IP: {decoyIP}");
-                }
+                case "deep":
+                    PerformDeepScan();
+                    break;
+                case "stealth":
+                    PerformStealthScan();
+                    break;
+                default:
+                    PerformBasicScan();
+                    break;
             }
+
+            DisplayNetworkMap();
         }
 
         private void AnalyzeIP(string ip)
@@ -169,11 +176,94 @@ namespace Hacker_Simulator
         private void ShowHelp()
         {
             Console.WriteLine("\nAvailable Commands:");
-            Console.WriteLine("- scan : Scan for nearby IPs");
+            Console.WriteLine("- scan [type] : Scan for nearby IPs (types: basic, deep, stealth)");
+            Console.WriteLine("  * basic  - Standard scan with balanced detection chance");
+            Console.WriteLine("  * deep   - Thorough scan with higher detection chance");
+            Console.WriteLine("  * stealth - Careful scan with lower detection chance");
             Console.WriteLine("- analyze <ip> : Analyze specific IP for vulnerabilities");
             Console.WriteLine("- exploit <ip> : Attempt to exploit a system");
             Console.WriteLine("- help : Show this help message");
             Console.WriteLine("- exit : Exit game");
+        }
+
+        private void PerformBasicScan()
+        {
+            Random rand = new Random();
+            int discoveryChance = 40;
+
+            if (!networkMap.ContainsKey(enemyIP) && rand.Next(100) < discoveryChance)
+            {
+                AddNodeToNetwork(enemyIP, rand.Next(1, 4));
+                Console.WriteLine($"Discovered IP: {enemyIP} (Distance: {networkMap[enemyIP].Distance} hops)");
+            }
+            else
+            {
+                string decoyIP = GenerateRandomIP();
+                AddNodeToNetwork(decoyIP, rand.Next(1, 3));
+                Console.WriteLine($"Discovered IP: {decoyIP} (Distance: {networkMap[decoyIP].Distance} hops)");
+            }
+        }
+
+        private void PerformDeepScan()
+        {
+            Console.WriteLine("Performing deep scan (higher detection chance but slower)...");
+            Thread.Sleep(2000);
+
+            Random rand = new Random();
+            int discoveryChance = 60;
+
+            if (!networkMap.ContainsKey(enemyIP) && rand.Next(100) < discoveryChance)
+            {
+                AddNodeToNetwork(enemyIP, rand.Next(1, 3));
+                // Add some connected nodes
+                for (int i = 0; i < rand.Next(1, 4); i++)
+                {
+                    string connectedIP = GenerateRandomIP();
+                    AddNodeToNetwork(connectedIP, networkMap[enemyIP].Distance + 1);
+                    networkMap[enemyIP].ConnectedIPs.Add(connectedIP);
+                }
+            }
+
+            Console.WriteLine("Deep scan complete. Network topology updated.");
+        }
+
+        private void PerformStealthScan()
+        {
+            Console.WriteLine("Performing stealth scan (lower detection risk)...");
+            Thread.Sleep(1500);
+
+            Random rand = new Random();
+            int discoveryChance = 30;
+
+            if (!networkMap.ContainsKey(enemyIP) && rand.Next(100) < discoveryChance)
+            {
+                AddNodeToNetwork(enemyIP, rand.Next(2, 5));
+                Console.WriteLine("Hidden node detected...");
+            }
+        }
+
+        private void AddNodeToNetwork(string ip, int distance)
+        {
+            if (!networkMap.ContainsKey(ip))
+            {
+                networkMap[ip] = new NetworkNode(ip)
+                {
+                    Distance = distance
+                };
+            }
+        }
+
+        private void DisplayNetworkMap()
+        {
+            Console.WriteLine("\nNetwork Map:");
+            foreach (var node in networkMap.Values.OrderBy(n => n.Distance))
+            {
+                Console.WriteLine($"└─[{node.IP}] - Distance: {node.Distance} hops");
+                foreach (var connectedIP in node.ConnectedIPs)
+                {
+                    Console.WriteLine($"  └─── Connected to: {connectedIP}");
+                }
+            }
         }
     }
 }
