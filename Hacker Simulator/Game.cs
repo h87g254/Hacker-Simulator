@@ -10,9 +10,33 @@
         private Dictionary<string, NetworkNode> networkMap = new Dictionary<string, NetworkNode>();
         private List<string> playerIPs = new List<string>();
         private List<string> aiIPs = new List<string>();
+        private NetworkManager networkManager;
+        private bool isMultiplayer = false;
 
         public void Start()
         {
+            Console.WriteLine("Do you want to play in multiplayer mode? (yes/no)");
+            string response = Console.ReadLine()?.ToLower();
+            if (response == "yes")
+            {
+                isMultiplayer = true;
+                networkManager = new NetworkManager();
+                Console.WriteLine("Do you want to host a game or join a game? (host/join)");
+                response = Console.ReadLine()?.ToLower();
+                if (response == "host")
+                {
+                    networkManager.StartServer(5000);
+                    networkManager.OnMessageReceived += ProcessNetworkCommand;
+                }
+                else if (response == "join")
+                {
+                    Console.WriteLine("Enter the IP address of the host:");
+                    string ipAddress = Console.ReadLine();
+                    networkManager.ConnectToServer(ipAddress, 5000);
+                    networkManager.OnMessageReceived += ProcessNetworkCommand;
+                }
+            }
+
             InitializeGame();
 
             while (!isGameOver)
@@ -27,6 +51,8 @@
                 // AI Opponents take their turn
                 AITakeTurn();
             }
+
+            networkManager?.Stop();
         }
         private void SetConsoleUI()
         {
@@ -88,7 +114,7 @@
         }
 
 
-        private void ProcessCommand(string command)
+        private void ProcessCommand(string command, bool isNetworkCommand = false)
         {
             string[] parts = command.Split(' ');
             string baseCommand = parts[0];
@@ -209,8 +235,16 @@
                     break;
 
                 default:
-                    Console.WriteLine("Unknown command. Type 'help' for available commands.");
+                    if (!isNetworkCommand)
+                    {
+                        Console.WriteLine("Unknown command. Type 'help' for available commands.");
+                    }
                     break;
+            }
+
+            if (isMultiplayer && !isNetworkCommand)
+            {
+                networkManager.SendMessage(command);
             }
         }
 
@@ -736,5 +770,11 @@
                 Console.WriteLine("IP not found in network map.");
             }
         }
+        private void ProcessNetworkCommand(string command)
+        {
+            // Process commands received from the network
+            ProcessCommand(command, true);
+        }
+
     }
 }
